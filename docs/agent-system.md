@@ -22,19 +22,16 @@
 
 ### 토론 구조
 
-```
-Round 1: 페르소나별 독립 의견 제시
-  ├─ 각자 별도 컨텍스트로 호출 (서로의 답을 보지 않음)
-  └─ 정량 데이터(Phase, RS, 어닝콜, 뉴스) + few-shot(과거 학습)
+```mermaid
+flowchart TB
+    R1["<b>Round 1 · 독립 의견</b><br/>5 페르소나 각자 별도 컨텍스트<br/>서로의 답을 보지 않음<br/>정량 데이터 + few-shot(과거 학습) 주입"]
+    R2["<b>Round 2 · 상호 반박/보강</b><br/>Round 1 결과를 전체 페르소나에 노출<br/>동의 · 반박 · 추가 근거 요청"]
+    R3["<b>Round 3 · Moderator 합의</b><br/>합의점/대립점 정리<br/>검증 가능한 thesis 구조화<br/>narrative_chain 갱신"]
 
-Round 2: 상호 반박/보강
-  ├─ Round 1 결과를 전체 페르소나에게 노출
-  └─ 동의/반박/추가 근거 요청
+    R1 --> R2 --> R3
 
-Round 3: Moderator 합의 + thesis 추출
-  ├─ 별도 moderator 에이전트가 합의점/대립점 정리
-  ├─ 검증 가능한 예측 형태로 thesis 구조화
-  └─ narrative_chain (megatrend → bottleneck → beneficiary) 갱신
+    classDef round fill:#1f2937,stroke:#60a5fa,color:#f9fafb
+    class R1,R2,R3 round
 ```
 
 토론 결과는 `debate_sessions` 테이블에 라운드별로 저장된다. 모든 출력이 보존되므로 사후에 어떤 페르소나가 어떤 시점에 무엇을 말했는지 추적 가능.
@@ -71,31 +68,18 @@ Round 3: Moderator 합의 + thesis 추출
 
 검증된 thesis와 패턴은 시스템의 장기 기억으로 누적된다.
 
-```
-┌─────────────────────────────────────┐
-│ Debate                              │
-│  └─ thesis 생성 (ACTIVE)             │
-└─────────────────────────────────────┘
-              │
-              ▼ (시간 경과)
-┌─────────────────────────────────────┐
-│ thesisVerifier                      │
-│  └─ ACTIVE → CONFIRMED / INVALIDATED│
-└─────────────────────────────────────┘
-              │
-              ▼
-┌─────────────────────────────────────┐
-│ promote-learnings (ETL job)         │
-│  ├─ 반복 적중 패턴 → agent_learnings │
-│  ├─ 반복 실패 조합 → failure_patterns│
-│  └─ 최대 50개 유지 (오래된 것 강등)    │
-└─────────────────────────────────────┘
-              │
-              ▼ (다음 토론 호출 시)
-┌─────────────────────────────────────┐
-│ Few-shot 주입                        │
-│  └─ 페르소나 프롬프트에 학습 사례 첨부 │
-└─────────────────────────────────────┘
+```mermaid
+flowchart TB
+    D["<b>Debate</b><br/>thesis 생성 (ACTIVE)"]
+    V["<b>thesisVerifier</b><br/>시간 경과 후<br/>ACTIVE → CONFIRMED / INVALIDATED"]
+    P["<b>promote-learnings (ETL job)</b><br/>반복 적중 → agent_learnings<br/>반복 실패 → failure_patterns<br/>최대 50개 유지 (오래된 것 강등)"]
+    F["<b>Few-shot 주입</b><br/>다음 토론 호출 시<br/>페르소나 프롬프트에 학습 사례 첨부"]
+
+    D --> V --> P --> F
+    F -. 다음 라운드 .-> D
+
+    classDef step fill:#1f2937,stroke:#34d399,color:#f9fafb
+    class D,V,P,F step
 ```
 
 이 루프 덕에 시스템은 시간이 지날수록 **자신이 어떤 종류의 가설에 강하고 약한지** 학습한다. 새로 만든 thesis가 과거 실패 패턴과 매칭되면 토론 단계에서 자동으로 경고가 발생한다.
@@ -130,32 +114,42 @@ Round 3: Moderator 합의 + thesis 추출
 
 엔지니어링 작업 자체도 에이전트 체계로 운영된다.
 
-```
-                   ┌──────────────┐
-                   │   Manager    │  (사용자 = CEO)
-                   └──────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│mission-      │  │pr-manager    │  │strategic-    │
-│planner       │  │              │  │aide          │
-│(미션 기획)    │  │(PR 생애주기)  │  │(매일 04:00   │
-│              │  │              │  │ 전략 브리핑)  │
-└──────────────┘  └──────────────┘  └──────────────┘
+```mermaid
+flowchart TB
+    CEO(["CEO (사용자)"])
+    M["Manager"]
+    MP["mission-planner<br/>미션 기획"]
+    PR["pr-manager<br/>PR 생애주기"]
+    SA["strategic-aide<br/>매일 04:00<br/>전략 브리핑"]
+    AP["analyst-po"]
+    PP["portfolio-po"]
+    OP["ops-po"]
+    BP["backoffice-po"]
+    BE["backend-engineer"]
+    FE["frontend-engineer"]
 
-        ┌──────────────── 부서 PO ────────────────┐
-        ▼              ▼              ▼          ▼
-   analyst-po   portfolio-po    ops-po    backoffice-po
-        │              │              │          │
-        └──────────────┴──────────────┴──────────┘
-                          │
-                          ▼
-              ┌────────────────────┐
-              │ 실행팀 (전사 공유)   │
-              │  backend-engineer  │
-              │  frontend-engineer │
-              └────────────────────┘
+    CEO --> M
+    M --> MP
+    M --> PR
+    M --> SA
+    M -.PO 위임.-> AP
+    M -.PO 위임.-> PP
+    M -.PO 위임.-> OP
+    M -.PO 위임.-> BP
+    AP --> BE
+    AP --> FE
+    PP --> BE
+    OP --> BE
+    BP --> FE
+
+    classDef direct fill:#1f2937,stroke:#fbbf24,color:#f9fafb
+    classDef po fill:#1f2937,stroke:#a78bfa,color:#f9fafb
+    classDef exec fill:#1f2937,stroke:#34d399,color:#f9fafb
+    classDef boss fill:#1f2937,stroke:#f87171,color:#f9fafb
+    class CEO,M boss
+    class MP,PR,SA direct
+    class AP,PP,OP,BP po
+    class BE,FE exec
 ```
 
 ### 동작 원리

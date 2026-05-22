@@ -11,86 +11,63 @@
 
 ## 모노레포 레이아웃
 
+```mermaid
+flowchart LR
+    subgraph Domains
+        A["analyst<br/>시그널 발굴<br/>jobs · debate · agent · fundamental"]
+        P["portfolio<br/>PF 결정<br/>tier · exit · sizing"]
+        O["ops<br/>자동화 운영<br/>etl · reports · qa<br/>issue-processor · pr-reviewer"]
+        B["backoffice<br/>운영자 대시보드 (Next.js)<br/>KPI · 매매일지 · 5트랙 국면"]
+        C["b2c<br/>외부 노출 (Next.js)<br/>레이어 A 가공 데이터"]
+    end
+    S["shared<br/>Drizzle schema · DB client · 도메인 타입"]
+
+    A --> S
+    P --> S
+    O --> S
+    B --> S
+    C --> S
+
+    classDef domain fill:#1f2937,stroke:#60a5fa,color:#f9fafb
+    classDef shared fill:#1f2937,stroke:#fbbf24,color:#f9fafb
+    class A,P,O,B,C domain
+    class S shared
 ```
-packages/
-├── analyst/       # 시그널 발굴 도메인
-│   ├── jobs/      # ETL 잡 (Phase 판정, RS 계산, 브레드스 등)
-│   ├── debate/    # 5인 토론 엔진 + thesis verifier
-│   ├── agent/     # 일간/주간 에이전트 루프
-│   ├── corporate/ # 기업 심층 분석
-│   └── fundamental/  # SEPA 스코어링
-│
-├── portfolio/     # PF 결정 도메인
-│   ├── tier/      # tier 격상/강등 룰
-│   ├── exit/      # Phase Exit, trailing stop
-│   └── sizing/    # 포지션 사이징 (현재 L1 룰)
-│
-├── ops/           # 자동화 운영 도메인
-│   ├── etl/       # 외부 데이터 수집
-│   ├── reports/   # 일간/주간/기업 리포트 발행
-│   ├── qa/        # 3축 QA 게이트
-│   ├── issue-processor/  # GitHub Issue → PR
-│   └── pr-reviewer/      # PR Strategic + Code 리뷰
-│
-├── backoffice/    # 운영자 대시보드 (Next.js)
-│   └── app/       # 알파 KPI / 매매일지 / 5트랙 국면 시각화
-│
-├── b2c/           # 외부 노출 서비스 (Next.js, 레이어 A)
-│
-└── shared/        # Drizzle schema / DB client / 도메인 타입
-```
+
+모든 도메인은 `shared`에만 단방향 의존한다. 도메인 간 직접 호출은 없고, 통신은 DB 테이블을 매개로 한다.
 
 ---
 
 ## 데이터 플로우
 
-```
-┌──────────────────────────────────────────────────────┐
-│  External Sources                                    │
-│  FMP Ultimate · FRED · Brave Search · RSS · GitHub  │
-└──────────────────────────────────────────────────────┘
-                       │
-                       ▼ (ETL)
-┌──────────────────────────────────────────────────────┐
-│  Layer 1: Market Raw                                 │
-│  symbols · daily_prices · daily_ma · index_prices    │
-│  quarterly_financials · earning_call_transcripts     │
-│  stock_news · news_archive · credit_indicators       │
-└──────────────────────────────────────────────────────┘
-                       │
-                       ▼ (Derived)
-┌──────────────────────────────────────────────────────┐
-│  Layer 2: Derived Signals                            │
-│  stock_phases · sector_rs_daily · industry_rs_daily  │
-│  theme_rs_daily · market_breadth_daily               │
-│  fundamental_scores (SEPA)                           │
-└──────────────────────────────────────────────────────┘
-                       │
-                       ▼ (Agent)
-┌──────────────────────────────────────────────────────┐
-│  Layer 3: Analysis & Synthesis                       │
-│  debate_sessions · theses · narrative_chains         │
-│  market_regimes · meta_regimes                       │
-│  geopolitical_regimes · policy_regimes               │
-│  tracked_stocks · portfolio_positions                │
-└──────────────────────────────────────────────────────┘
-                       │
-                       ▼ (Verify & Learn)
-┌──────────────────────────────────────────────────────┐
-│  Layer 4: Learning                                   │
-│  agent_learnings · failure_patterns                  │
-│  recommendation_factors · signal_log                 │
-└──────────────────────────────────────────────────────┘
-                       │
-                       ▼ (Deliver)
-┌──────────────────────────────────────────────────────┐
-│  Layer 5: Reports & QA                               │
-│  daily_reports · stock_analysis_reports              │
-│  weekly_qa_reports · daily_qa_reports                │
-└──────────────────────────────────────────────────────┘
-                       │
-                       ▼
-              Discord · Backoffice · B2C
+```mermaid
+flowchart TB
+    EXT["External Sources<br/>FMP Ultimate · FRED · Brave Search · RSS · GitHub"]
+    L1["<b>Layer 1 · Market Raw</b><br/>symbols · daily_prices · daily_ma · index_prices<br/>quarterly_financials · earning_call_transcripts<br/>stock_news · news_archive · credit_indicators"]
+    L2["<b>Layer 2 · Derived Signals</b><br/>stock_phases · sector_rs_daily · industry_rs_daily<br/>theme_rs_daily · market_breadth_daily<br/>fundamental_scores (SEPA)"]
+    L3["<b>Layer 3 · Analysis & Synthesis</b><br/>debate_sessions · theses · narrative_chains<br/>market_regimes · meta_regimes<br/>geopolitical_regimes · policy_regimes<br/>tracked_stocks · portfolio_positions"]
+    L4["<b>Layer 4 · Learning</b><br/>agent_learnings · failure_patterns<br/>recommendation_factors · signal_log"]
+    L5["<b>Layer 5 · Reports & QA</b><br/>daily_reports · stock_analysis_reports<br/>weekly_qa_reports · daily_qa_reports"]
+    OUT["Discord · Backoffice · B2C"]
+
+    EXT -->|ETL| L1
+    L1 -->|Derived| L2
+    L2 -->|Agent| L3
+    L3 -->|Verify & Learn| L4
+    L4 -. few-shot 주입 .-> L3
+    L3 -->|Deliver| L5
+    L5 --> OUT
+
+    classDef raw fill:#1f2937,stroke:#60a5fa,color:#f9fafb
+    classDef derived fill:#1f2937,stroke:#a78bfa,color:#f9fafb
+    classDef agent fill:#1f2937,stroke:#34d399,color:#f9fafb
+    classDef learn fill:#1f2937,stroke:#fbbf24,color:#f9fafb
+    classDef out fill:#1f2937,stroke:#f87171,color:#f9fafb
+    class EXT,L1 raw
+    class L2 derived
+    class L3 agent
+    class L4 learn
+    class L5,OUT out
 ```
 
 ---

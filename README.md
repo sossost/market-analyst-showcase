@@ -23,40 +23,33 @@
 
 ## 시스템 한눈에 보기
 
-```
-            ┌────────────────────────────────────────────────┐
-            │  ETL  (가격·재무·뉴스·어닝콜·매크로 지표)         │
-            └────────────────────────────────────────────────┘
-                            │
-                            ▼
-        ┌──────────────────────────────────────────────┐
-        │  파생 지표 계산                                │
-        │  Weinstein Phase / RS / 브레드스 / SEPA       │
-        └──────────────────────────────────────────────┘
-                            │
-                            ▼
-       ┌────────────────────────────────────────────────┐
-       │  Multi-Model Debate (5 페르소나)                │
-       │  Tech · Macro · Industry · Sentiment · Geo     │
-       │  → narrative chain · thesis 산출                │
-       └────────────────────────────────────────────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-        ┌──────────┐   ┌──────────┐   ┌──────────┐
-        │ Daily/   │   │ Tracking │   │ Learning │
-        │ Weekly   │   │ (90d)    │   │ Loop     │
-        │ Report   │   │          │   │ (verify→ │
-        │          │   │          │   │ promote) │
-        └──────────┘   └──────────┘   └──────────┘
-              │
-              ▼
-        ┌──────────┐
-        │ QA Gate  │  (코드 정량 + 페르소나 정성)
-        └──────────┘
-              │
-              ▼
-        Discord / Dashboard
+```mermaid
+flowchart TB
+    ETL["ETL<br/>가격 · 재무 · 뉴스 · 어닝콜 · 매크로"]
+    DERIVED["파생 지표<br/>Weinstein Phase · RS · Breadth · SEPA"]
+    DEBATE["Multi-Model Debate<br/>5 페르소나 (Tech · Macro · Industry · Sentiment · Geo)<br/>→ narrative chain · thesis"]
+    REPORT["Daily / Weekly<br/>Report"]
+    TRACK["Tracking<br/>(90d window)"]
+    LEARN["Learning Loop<br/>verify → promote"]
+    QA["QA Gate<br/>코드 정량 + 페르소나 정성"]
+    OUT["Discord / Dashboard"]
+
+    ETL --> DERIVED
+    DERIVED --> DEBATE
+    DEBATE --> REPORT
+    DEBATE --> TRACK
+    DEBATE --> LEARN
+    LEARN -. few-shot 주입 .-> DEBATE
+    REPORT --> QA
+    QA --> OUT
+    TRACK --> OUT
+
+    classDef stage fill:#1f2937,stroke:#60a5fa,color:#f9fafb,stroke-width:1px
+    classDef gate fill:#1f2937,stroke:#fbbf24,color:#f9fafb,stroke-width:1px
+    classDef out fill:#1f2937,stroke:#34d399,color:#f9fafb,stroke-width:1px
+    class ETL,DERIVED,DEBATE,REPORT,TRACK,LEARN stage
+    class QA gate
+    class OUT out
 ```
 
 ---
