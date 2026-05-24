@@ -86,6 +86,63 @@ flowchart TB
 
 ---
 
+## Deep Research — 외부 증거로 내러티브 검증
+
+토론은 "AI 인프라 사이클의 병목은 HBM 메모리" 같은 **내러티브 체인**(megatrend → bottleneck → 수혜주)을 만든다. 하지만 이건 모델 내부 지식에 기반한 가설일 뿐이다. 병목이 지금도 유효한지, 누가 진짜 수혜를 보는지는 **외부 실시간 증거**로 확인해야 한다.
+
+이 역할을 토론 페르소나와 분리된 독립 에이전트 `chain-researcher`(Sonnet)가 맡는다.
+
+### 토론 페르소나와 무엇이 다른가
+
+| | 5인 토론 페르소나 | chain-researcher |
+|---|---|---|
+| 입력 | DB 정량 데이터 + few-shot | 병목 체인 1개 + 보유 데이터(어닝콜/뉴스) |
+| 도구 | 없음 (내부 추론) | WebSearch · WebFetch (외부 증거) |
+| 출력 | 의견 → 합의 → thesis | 구조화 JSON (verdict + 출처 + 수혜주 후보) |
+| 호출 | debate 엔진 | `run-chain-researcher.ts` 잡이 CLI로 호출 |
+
+### 무엇을 산출하는가
+
+체인 하나를 받아 외부 증거를 수집하고 세 가지를 판정한다.
+
+1. **병목 지속성** — `PERSISTS` / `WEAKENING` / `RESOLVED`. 증산 발표·대체 공급망 등 해소 신호를 근거로 판정.
+2. **수혜주 발굴·확장** — 현재 병목에 직접 노출된 기업만 후보로 발굴 (다음 병목 수혜는 제외하고 텍스트로만 서술).
+3. **다음 병목 예측** — 이 병목이 풀리면 어디로 이동할지.
+
+모든 주장에는 출처 URL + 발행 타임스탬프가 강제된다. Bloomberg·WSJ·SEC 공시는 confidence 상향, 소셜/익명 소스만 있으면 confidence 0.3 미만으로 기록되어 후속 잡이 자동 기각한다.
+
+### 3층 분리 — 증거 / 스테이징 / 상태
+
+리서치 결과를 체인 본체에 바로 덮어쓰지 않는다. 알파 귀속을 사후 측정할 수 있도록 증거를 보존한다.
+
+```mermaid
+flowchart TB
+    R["<b>chain-researcher</b><br/>외부 웹 증거 수집<br/>verdict · 수혜주 후보 · 출처 JSON"]
+    RUN["<b>research_runs</b> (증거층)<br/>append-only · 출처/confidence 보존<br/>덮어쓰기 없음"]
+    CAND["<b>beneficiary_candidates</b> (스테이징)<br/>PROPOSED → ACCEPTED / REJECTED<br/>row 단위 보존 (6개월 후 알파 귀속)"]
+    CHAIN["<b>narrative_chains</b> (상태)<br/>verdict 스트릭 → status 전이"]
+
+    R --> RUN
+    RUN -->|apply 잡| CAND
+    RUN -->|evaluate 잡| CHAIN
+
+    classDef step fill:#1f2937,stroke:#34d399,color:#f9fafb
+    class R,RUN,CAND,CHAIN step
+```
+
+### 생애주기 전이 — verdict 히스테리시스
+
+단발 verdict로 체인 상태를 바꾸지 않는다. 노이즈에 흔들리지 않도록 **연속 판정**을 요구하는 히스테리시스를 적용한다.
+
+- `evaluate-chain-lifecycle` 잡이 미평가 run을 오래된 순서로 fold
+- 예: `WEAKENING` 2회 연속 → 체인 `ACTIVE` → `RESOLVING` 전이
+- **LLM 호출 없는 결정론적 룰** — 같은 입력은 같은 결과
+- 각 run은 `lifecycleEvaluatedAt` 마커로 정확히 1회만 스트릭에 반영 (재실행 안전, idempotent)
+
+토론이 가설을 세우고 → 딥리서치가 외부 증거로 검증하고 → 검증 결과가 다시 토론의 few-shot으로 돌아온다. 학습 루프가 가격·실적이라는 *시장 결과*로 닫힌다면, 딥리서치 루프는 *외부 사실*로 닫힌다.
+
+---
+
 ## QA Gate — 발행 전 3축 채점
 
 리포트는 작성되었다고 바로 발행되지 않는다. 3축 채점을 통과해야 한다.
@@ -165,7 +222,7 @@ flowchart TB
 
 이 체계 자체가 코드 베이스에 prompt 파일로 정의되어 있고, Claude Code CLI가 매 세션에서 자동 로드한다.
 
-총 specialized agent 18종. 토론 페르소나 5종 + 직속 3종 + PO 4종 + 실행팀 + QA·data viz 등.
+총 specialized agent 20종. 토론 페르소나 5종 + 직속 3종 + PO 4종 + 실행팀 + 딥리서치(chain-researcher) + QA·data viz 등.
 
 ---
 
@@ -173,6 +230,7 @@ flowchart TB
 
 - **모델 다양성을 페르소나로 활용** — 단일 모델 합의가 아닌, 서로 다른 모델의 강점을 페르소나로 배치
 - **자기 검증** — thesis 자동 검증으로 시스템이 자신의 적중률을 정량 추적
+- **외부 사실 검증** — 독립 딥리서치 에이전트가 외부 웹 증거로 내러티브를 검증하고 출처와 함께 보존
 - **자기 학습** — 검증 결과가 다음 토론 few-shot으로 자동 주입
 - **자기 품질 통제** — QA gate가 발행을 차단하고, 페르소나 피드백이 프롬프트를 개선
 - **자기 운영** — 엔지니어링 작업까지 에이전트 조직으로 운영 (다음 문서 참조)

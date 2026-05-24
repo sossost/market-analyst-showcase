@@ -15,9 +15,11 @@
 
 3. **재귀 학습 루프** — 에이전트가 만든 thesis(검증 가능한 예측)는 시간이 지난 뒤 가격·실적 데이터로 자동 검증된다. CONFIRMED/INVALIDATED 결과는 패턴으로 승격되어 다음 토론에 few-shot으로 주입된다. 시스템은 자신의 과거 적중률을 기억한다.
 
-4. **QA 3축 채점 + 페르소나 피드백 루프** — 모든 리포트는 코드 기반 정량 채점(성과·분석 품질)과 LLM 페르소나 기반 정성 채점을 통과해야 발행된다. 페르소나 피드백은 다음 주간 에이전트 프롬프트에 자동 주입된다.
+4. **외부 증거 기반 딥리서치** — 토론이 만든 병목 내러티브(megatrend → bottleneck → 수혜주)는 가설로 끝나지 않는다. 독립 리서치 에이전트(`chain-researcher`)가 Bloomberg·WSJ·SEC 공시·어닝콜을 직접 검색해 병목 지속성을 판정(PERSISTS/WEAKENING/RESOLVED)하고, 새 수혜주를 발굴하며, 다음 병목을 예측한다. 수집 증거는 출처·타임스탬프와 함께 append-only 증거층에 보존되고, WEAKENING이 연속되면 체인 상태가 결정론적 룰로 자동 전이된다. (상세: [docs/agent-system.md](docs/agent-system.md))
 
-5. **5개 도메인 모노레포** — 시그널 발굴 / 포트폴리오 결정 / 자동화 운영 / 운영자 대시보드 / B2C 서비스로 도메인 경계를 명확히 분리. 각 도메인은 PO 에이전트로 추상화되어 사람 조직 체계처럼 동작한다.
+5. **QA 3축 채점 + 페르소나 피드백 루프** — 모든 리포트는 코드 기반 정량 채점(성과·분석 품질)과 LLM 페르소나 기반 정성 채점을 통과해야 발행된다. 페르소나 피드백은 다음 주간 에이전트 프롬프트에 자동 주입된다.
+
+6. **5개 도메인 모노레포** — 시그널 발굴 / 포트폴리오 결정 / 자동화 운영 / 운영자 대시보드 / B2C 서비스로 도메인 경계를 명확히 분리. 각 도메인은 PO 에이전트로 추상화되어 사람 조직 체계처럼 동작한다.
 
 ---
 
@@ -28,6 +30,7 @@ flowchart TB
     ETL["ETL<br/>가격 · 재무 · 뉴스 · 어닝콜 · 매크로"]
     DERIVED["파생 지표<br/>Weinstein Phase · RS · Breadth · SEPA"]
     DEBATE["Multi-Model Debate<br/>5 페르소나 (Tech · Macro · Industry · Sentiment · Geo)<br/>→ narrative chain · thesis"]
+    RESEARCH["Deep Research<br/>chain-researcher (외부 웹 증거)<br/>병목 판정 · 수혜주 발굴 · 생애주기 전이"]
     REPORT["Daily / Weekly<br/>Report"]
     TRACK["Tracking<br/>(90d window)"]
     LEARN["Learning Loop<br/>verify → promote"]
@@ -36,9 +39,12 @@ flowchart TB
 
     ETL --> DERIVED
     DERIVED --> DEBATE
+    DEBATE --> RESEARCH
     DEBATE --> REPORT
     DEBATE --> TRACK
     DEBATE --> LEARN
+    RESEARCH --> TRACK
+    RESEARCH -. verdict → 학습 .-> LEARN
     LEARN -. few-shot 주입 .-> DEBATE
     REPORT --> QA
     QA --> OUT
@@ -47,7 +53,7 @@ flowchart TB
     classDef stage fill:#1f2937,stroke:#60a5fa,color:#f9fafb,stroke-width:1px
     classDef gate fill:#1f2937,stroke:#fbbf24,color:#f9fafb,stroke-width:1px
     classDef out fill:#1f2937,stroke:#34d399,color:#f9fafb,stroke-width:1px
-    class ETL,DERIVED,DEBATE,REPORT,TRACK,LEARN stage
+    class ETL,DERIVED,DEBATE,RESEARCH,REPORT,TRACK,LEARN stage
     class QA gate
     class OUT out
 ```
@@ -102,10 +108,10 @@ flowchart TB
 
 ## 운영 규모
 
-- DB 테이블 37개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴)
+- DB 테이블 70여 개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴)
 - 종목 트래킹 윈도우 90일
 - 일 17회 cron, 7종 리포트 자동 발행 (일간/주간/기업/QA 등)
-- specialized agent 18종 (PO, 토론 페르소나, 실행팀 등)
+- specialized agent 20종 (PO, 토론 페르소나, 딥리서치, 실행팀 등)
 
 ---
 
