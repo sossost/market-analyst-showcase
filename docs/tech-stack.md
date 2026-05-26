@@ -47,22 +47,24 @@
 
 | SDK / CLI | 용도 |
 |-----------|------|
-| `@anthropic-ai/sdk` | Claude Opus/Sonnet/Haiku 직접 호출 (토론, QA, 분석) |
+| `@anthropic-ai/sdk` | Claude Opus/Sonnet/Haiku 직접 호출 (Macro·Industry·Moderator, QA, 분석) |
 | Claude Code CLI | Issue Processor / PR Reviewer (코드 작성/리뷰 컨텍스트) |
 | OpenAI Codex CLI | Sentiment 페르소나 (gpt-5.5 계열) |
-| `@google/generative-ai` | Geopolitics 페르소나 (Gemini 2.5 Flash) |
+| OpenAI SDK (xAI baseURL) | Tech 페르소나 (Grok 4.3 — xAI는 OpenAI 호환 API) |
+| `@google/generative-ai` | Geopolitics 페르소나 (Gemini 3.1 Pro Preview) |
 
 ### 모델 선택 원칙
 
 | 작업 | 모델 | 이유 |
 |------|------|------|
-| 토론 핵심 페르소나 (Tech/Macro/Industry) | Claude Opus | 깊은 추론, 긴 컨텍스트 |
+| Macro / Industry / Moderator | Claude Opus | 깊은 추론, 긴 컨텍스트 |
+| Tech | xAI Grok 4.3 | agentic tool calling 강점, 환각 적음, 1M context |
+| Geopolitics | Google Gemini 3.1 Pro Preview | reasoning + 검색 통합, 다국어 |
+| Sentiment | OpenAI gpt-5.5 (Codex CLI) | 언어 직감 + 다양성 확보 |
 | 짧은 분류/정리 | Claude Haiku | 비용·속도 |
 | 코드 작성/리뷰 | Claude Sonnet (Code CLI) | 코드 품질 |
-| Sentiment | OpenAI gpt-5.5 | 언어 직감 + 다양성 확보 |
-| Geopolitics | Gemini Flash | 다국어 + 다양성 확보 |
 
-비용 최적화가 목표가 아니다. **모델 다양성**으로 토론 품질을 확보하는 것이 목표.
+비용 최적화가 목표가 아니다. **모델 다양성(4 lineage)**으로 토론 품질을 확보하는 것이 목표.
 
 ---
 

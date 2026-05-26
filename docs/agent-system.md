@@ -14,11 +14,14 @@
 
 | 페르소나 | 책임 | 모델 |
 |---------|------|------|
-| Tech Analyst | RS·Phase·브레드스 기반 기술적 분석 | Claude Opus |
+| Tech Analyst | RS·Phase·브레드스 기반 기술적 분석 | xAI Grok 4.3 |
 | Macro Economist | 금리/유동성/매크로 지표 해석 | Claude Opus |
 | Industry Analyst | 업종/공급망/병목 분석 | Claude Opus |
 | Sentiment Analyst | 뉴스/심리/내러티브 추적 | OpenAI Codex CLI (gpt-5.5 계열) |
-| Geopolitics | 지정학·정책 국면 해석 | Google Gemini 2.5 Flash |
+| Geopolitics | 지정학·정책 국면 해석 | Google Gemini 3.1 Pro Preview |
+| Moderator | 3R 종합 + thesis 구조화 | Claude Opus |
+
+**5개 페르소나 = 4개 lineage (Anthropic·xAI·Google·OpenAI)** — 단일 모델 합의 회피 + 도메인별 강점 매칭.
 
 ### 토론 구조
 
