@@ -21,7 +21,7 @@
 | Geopolitics | 지정학·정책 국면 해석 | Google Gemini 3.1 Pro Preview |
 | Moderator | 3R 종합 + thesis 구조화 | Claude Opus |
 
-**5개 페르소나 = 4개 lineage (Anthropic·xAI·Google·OpenAI)** — 단일 모델 합의 회피 + 도메인별 강점 매칭.
+**5개 토론 페르소나 + 1개 Moderator = 4개 lineage (Anthropic·xAI·Google·OpenAI)** — 단일 모델 합의 회피 + 도메인별 강점 매칭.
 
 ### 토론 구조
 
