@@ -24,7 +24,7 @@
 
 ### PostgreSQL (Supabase 호스팅) + Drizzle ORM
 
-- 37개 테이블, 시계열 + 관계형 데이터 혼합
+- 81개 테이블, 시계열 + 관계형 데이터 혼합
 - Supabase의 PostgREST는 backoffice/B2C 프론트엔드용. 무거운 ETL은 Drizzle로 직접 SQL.
 - 마이그레이션은 `drizzle-kit push` 기반 단방향 흐름 (롤백 케이스가 거의 없는 분석 시스템)
 
@@ -57,7 +57,7 @@
 
 | 작업 | 모델 | 이유 |
 |------|------|------|
-| Macro / Industry / Moderator | Claude Opus | 깊은 추론, 긴 컨텍스트 |
+| Macro / Industry / Moderator | Claude Opus 4.8 | 깊은 추론, 긴 컨텍스트 |
 | Tech | xAI Grok 4.3 | agentic tool calling 강점, 환각 적음, 1M context |
 | Geopolitics | Google Gemini 3.1 Pro Preview | reasoning + 검색 통합, 다국어 |
 | Sentiment | OpenAI gpt-5.5 (Codex CLI) | 언어 직감 + 다양성 확보 |

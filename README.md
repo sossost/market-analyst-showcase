@@ -9,7 +9,7 @@
 
 ## 이 프로젝트가 흥미로운 이유
 
-1. **멀티모델 5인 에이전트 토론** — Claude Opus / xAI Grok 4.3 / Google Gemini 3.1 Pro Preview / OpenAI Codex CLI(gpt-5.5)를 한 토론장에 묶어 페르소나별로 운영한다. **4개 lineage(Anthropic·xAI·Google·OpenAI)로 분산** — 단일 모델 합의가 아니라 서로 다른 모델의 강점을 페르소나로 배치한 구조. (상세: [docs/agent-system.md](docs/agent-system.md))
+1. **멀티모델 5인 에이전트 토론** — Claude Opus 4.8 / xAI Grok 4.3 / Google Gemini 3.1 Pro Preview / OpenAI Codex CLI(gpt-5.5)를 한 토론장에 묶어 페르소나별로 운영한다. **4개 lineage(Anthropic·xAI·Google·OpenAI)로 분산** — 단일 모델 합의가 아니라 서로 다른 모델의 강점을 페르소나로 배치한 구조. (상세: [docs/agent-system.md](docs/agent-system.md))
 
 2. **자율 운영** — 맥미니 한 대에서 launchd로 일 17회 cron이 돈다. 사람이 손대지 않아도 ETL → 토론 → 리포트 → QA → 학습이 매일 돌아간다. GitHub Issue가 triage되면 별도 cron이 Claude Code CLI로 코드를 작성하고 PR을 만들며, 또 다른 cron이 그 PR을 리뷰한다. (상세: [docs/autonomous-operations.md](docs/autonomous-operations.md))
 
@@ -95,7 +95,7 @@ flowchart TB
 ## 기술 스택
 
 - **런타임**: Node.js 20 (ESM), TypeScript strict
-- **DB**: PostgreSQL (Supabase) — 37개 테이블, Drizzle ORM
+- **DB**: PostgreSQL (Supabase) — 81개 테이블, Drizzle ORM
 - **AI**: Claude API (Opus / Sonnet / Haiku), OpenAI Codex CLI, Google Gemini API, Claude Code CLI
 - **프론트엔드**: Next.js (App Router), 모노레포 내 단일 backoffice 패키지
 - **테스트**: Vitest (80% 커버리지 라인)
@@ -108,7 +108,7 @@ flowchart TB
 
 ## 운영 규모
 
-- DB 테이블 70여 개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴)
+- DB 테이블 81개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴)
 - 종목 트래킹 윈도우 90일
 - 일 17회 cron, 7종 리포트 자동 발행 (일간/주간/기업/QA 등)
 - specialized agent 20종 (PO, 토론 페르소나, 딥리서치, 실행팀 등)

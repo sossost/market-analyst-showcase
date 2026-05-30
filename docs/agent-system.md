@@ -15,11 +15,11 @@
 | 페르소나 | 책임 | 모델 |
 |---------|------|------|
 | Tech Analyst | RS·Phase·브레드스 기반 기술적 분석 | xAI Grok 4.3 |
-| Macro Economist | 금리/유동성/매크로 지표 해석 | Claude Opus |
-| Industry Analyst | 업종/공급망/병목 분석 | Claude Opus |
+| Macro Economist | 금리/유동성/매크로 지표 해석 | Claude Opus 4.8 |
+| Industry Analyst | 업종/공급망/병목 분석 | Claude Opus 4.8 |
 | Sentiment Analyst | 뉴스/심리/내러티브 추적 | OpenAI Codex CLI (gpt-5.5 계열) |
 | Geopolitics | 지정학·정책 국면 해석 | Google Gemini 3.1 Pro Preview |
-| Moderator | 3R 종합 + thesis 구조화 | Claude Opus |
+| Moderator | 3R 종합 + thesis 구조화 | Claude Opus 4.8 |
 
 **5개 토론 페르소나 + 1개 Moderator = 4개 lineage (Anthropic·xAI·Google·OpenAI)** — 단일 모델 합의 회피 + 도메인별 강점 매칭.
 
@@ -38,6 +38,15 @@ flowchart TB
 ```
 
 토론 결과는 `debate_sessions` 테이블에 라운드별로 저장된다. 모든 출력이 보존되므로 사후에 어떤 페르소나가 어떤 시점에 무엇을 말했는지 추적 가능.
+
+### Round 1에 주입되는 정량 신호
+
+페르소나의 의견은 감(感)이 아니라 ETL이 매일 계산한 정량 스냅샷 위에서 만들어진다. Round 1 컨텍스트에 주입되는 촉매 데이터:
+
+- 섹터/업종 비트율 (Phase 2 비율, RS 분포)
+- 종목 RS 4주 추세
+- 수요 회복 신호 + 어닝콜 + 뉴스
+- **RS와 무관하게 거래량을 동반해 자금이 유입되는 업종** — 가격 돌파가 RS 퍼센타일에 반영되기 *이전*의 선행 신호. ETL의 거래량 동반 돌파 롤업(`industry_rs_daily`에 업종별 `confirmed_breakout_count` / `vol_surge_count` 집계)이 산출하며, RS가 아직 낮아 일반 게이트로는 안 잡히는 사이클 초입 업종을 토론장에 올린다.
 
 ---
 
@@ -62,6 +71,7 @@ flowchart TB
 - 조건 충족 → `CONFIRMED`
 - HOLD 임계 초과 stale thesis 자동 만료
 - 2일 연속 grace period 적용으로 단기 노이즈에 의한 조기 청산 방지
+- **pillar-scorecard 포맷** — 단일 충족/미충족 이진 판정이 아니라, thesis를 구성하는 근거 기둥(pillar)별로 현재 시장 데이터가 어디까지 부합하는지 채점한다. 부분 확인/부분 반증 상태를 보존해 조기 INVALIDATED를 줄이고, 어떤 전제가 깨졌는지 추적 가능
 
 검증 결과는 단순한 라벨이 아니다. **다음 토론의 few-shot 입력**이 된다.
 
