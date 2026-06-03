@@ -5,6 +5,8 @@
 
 벤치마크(SPY) 대비 모델 포트폴리오의 초과 수익(α) 생성을 단일 목표로 한다.
 
+알파는 온전한 시장 사이클(상승→하락→상승)로만 검증된다고 본다. 그래서 골에 시간 구조를 둔다 — **① 수집 단계**(현 상승 사이클): 측정 인프라를 무결하게 완성하고 학습 데이터를 축적한다. **② 수확 단계**(다음 하락~상승 사이클): 축적한 데이터로 진짜 알파를 선점한다. 지금의 성공 기준은 "알파를 냈는가"가 아니라 "다음 사이클에 학습 가능한 데이터를 무결하게 남겼는가"이다.
+
 ---
 
 ## 이 프로젝트가 흥미로운 이유
@@ -19,7 +21,9 @@
 
 5. **QA 3축 채점 + 페르소나 피드백 루프** — 모든 리포트는 코드 기반 정량 채점(성과·분석 품질)과 LLM 페르소나 기반 정성 채점을 통과해야 발행된다. 페르소나 피드백은 다음 주간 에이전트 프롬프트에 자동 주입된다.
 
-6. **5개 도메인 모노레포** — 시그널 발굴 / 포트폴리오 결정 / 자동화 운영 / 운영자 대시보드 / B2C 서비스로 도메인 경계를 명확히 분리. 각 도메인은 PO 에이전트로 추상화되어 사람 조직 체계처럼 동작한다.
+6. **하락장 선행 감지** — 알파 선점은 결국 다음 하락 사이클을 견디고 그 바닥에서 시작된다. 시스템은 4레이어 합성 리스크 스코어(일드커브 + 금융 스트레스 + 경제 사이클 + 시장 브레드스)로 드로다운 온셋을 선행 감지한다. 금융 스트레스를 주축 트리거로 두어 일드커브 단독 발화를 차단하는 게이트를 건다. 2008(+117일)·2022(+54일) 약세장을 사전 신호로 포착했고 precision 59.6%. 현재는 **관찰·로깅 전용**으로 전략 브리핑과 대시보드에 노출되며, PF 결정 자동 연결은 검증 완료 후로 보류한다 — 미검증 신호를 매매에 연결하지 않는 규율.
+
+7. **5개 도메인 모노레포** — 시그널 발굴 / 포트폴리오 결정 / 자동화 운영 / 운영자 대시보드 / B2C 서비스로 도메인 경계를 명확히 분리. 각 도메인은 PO 에이전트로 추상화되어 사람 조직 체계처럼 동작한다.
 
 ---
 
@@ -34,11 +38,14 @@ flowchart TB
     REPORT["Daily / Weekly<br/>Report"]
     TRACK["Tracking<br/>(90d window)"]
     LEARN["Learning Loop<br/>verify → promote"]
+    RISK["Risk Onset<br/>4레이어 선행 스코어<br/>(관찰 전용)"]
     QA["QA Gate<br/>코드 정량 + 페르소나 정성"]
     OUT["Discord / Dashboard"]
 
     ETL --> DERIVED
     DERIVED --> DEBATE
+    DERIVED --> RISK
+    RISK --> OUT
     DEBATE --> RESEARCH
     DEBATE --> REPORT
     DEBATE --> TRACK
@@ -53,7 +60,7 @@ flowchart TB
     classDef stage fill:#1f2937,stroke:#60a5fa,color:#f9fafb,stroke-width:1px
     classDef gate fill:#1f2937,stroke:#fbbf24,color:#f9fafb,stroke-width:1px
     classDef out fill:#1f2937,stroke:#34d399,color:#f9fafb,stroke-width:1px
-    class ETL,DERIVED,DEBATE,RESEARCH,REPORT,TRACK,LEARN stage
+    class ETL,DERIVED,DEBATE,RESEARCH,REPORT,TRACK,LEARN,RISK stage
     class QA gate
     class OUT out
 ```
@@ -95,7 +102,7 @@ flowchart TB
 ## 기술 스택
 
 - **런타임**: Node.js 20 (ESM), TypeScript strict
-- **DB**: PostgreSQL (Supabase) — 81개 테이블, Drizzle ORM
+- **DB**: PostgreSQL (Supabase) — 84개 테이블, Drizzle ORM
 - **AI**: Claude API (Opus / Sonnet / Haiku), OpenAI Codex CLI, Google Gemini API, Claude Code CLI
 - **프론트엔드**: Next.js (App Router), 모노레포 내 단일 backoffice 패키지
 - **테스트**: Vitest (80% 커버리지 라인)
@@ -108,7 +115,7 @@ flowchart TB
 
 ## 운영 규모
 
-- DB 테이블 81개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴)
+- DB 테이블 84개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴 / 백테스트)
 - 종목 트래킹 윈도우 90일
 - 일 17회 cron, 7종 리포트 자동 발행 (일간/주간/기업/QA 등)
 - specialized agent 20종 (PO, 토론 페르소나, 딥리서치, 실행팀 등)
