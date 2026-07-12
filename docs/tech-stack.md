@@ -24,7 +24,7 @@
 
 ### PostgreSQL (Supabase 호스팅) + Drizzle ORM
 
-- 81개 테이블, 시계열 + 관계형 데이터 혼합
+- 90개 테이블, 시계열 + 관계형 데이터 혼합
 - Supabase의 PostgREST는 backoffice/B2C 프론트엔드용. 무거운 ETL은 Drizzle로 직접 SQL.
 - 마이그레이션은 `drizzle-kit push` 기반 단방향 흐름 (롤백 케이스가 거의 없는 분석 시스템)
 
@@ -109,7 +109,7 @@
 
 ### macOS launchd
 
-- 일 17회 cron 안정 가동, 1년 이상 누적 가동 무중단
+- 20+종 cron 잡 안정 가동, 1년 이상 누적 가동 무중단
 - plist 파일은 `scripts/launchd/` 디렉터리에 git 관리
 - 배포는 `launchctl unload && launchctl load`
 

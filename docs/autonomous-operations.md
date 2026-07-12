@@ -23,16 +23,24 @@
 |------|-----------|------------|
 | ETL Daily | 07:00 화~토 | 일 1회 |
 | ETL Weekly | 08:00 일 | 주 1회 |
-| ETL Quarterly | 07:30 매월 1일 | 월 1회 |
-| Agent Weekly | 10:00 토 | 주 1회 |
-| News Collect | 06:00, 18:00 매일 | 일 2회 |
-| Strategic Review | 04:00 매일 | 일 1회 |
+| ETL Monthly | 07:30 매월 1일 | 월 1회 (테마 태그 전체 재분류) |
+| News Collect | 06:45, 18:00 매일 | 일 2회 |
+| Issue Triage | 09:00 매일 | 일 1회 |
 | Issue Processor | 매 정시 10:00~02:00 | **일 17회** |
 | PR Reviewer | 매 :30분 09:30~02:30 | **일 18회** |
-| System Audit | 06:00 토 | 주 1회 |
+| Strategic Review | 04:00 매일 | 일 1회 |
+| Chain Researcher | 05:00 금 | 주 1회 (딥리서치 run→apply→evaluate) |
+| Agent Weekly | 10:00 토 | 주 1회 (주간 리포트 시장·종목 2건) |
+| QA Weekly | 12:00 토 | 주 1회 (알파 KPI 무결성 포함) |
+| System Audit | 06:00 토 | 주 1회 (데이터·스케줄 문서 정합 감사) |
+| Component Review | 06:00 일 | 주 1회 (컴포넌트 자가 점검) |
+| Visual QA | 07:00 일 | 주 1회 (리포트 HTML 시각 검증) |
 | Log Cleanup | 09:00 일 | 주 1회 |
+| Claude Update | 05:00 일 | 주 1회 (CLI 자동 업데이트) |
 | Backoffice Health | 5분 주기 | **일 288회** |
-| Backoffice Deploy | 00:00 매일 | 일 1회 (origin/main 변경 시) |
+| Backoffice Deploy | 03:00 매일 | 일 1회 (origin/main 변경 시) |
+| Backoffice E2E | 05:30 매일 | 일 1회 (13페이지 스모크) |
+| B2C Deploy | 04:30 매일 | 일 1회 (origin/main 변경 시) |
 
 ---
 
@@ -141,6 +149,8 @@ flowchart TB
 Strategic Review에서 발견된 룰 변경 처방 후보는 IS(In-Sample) + OOS(Out-of-Sample) **듀얼 게이트**를 통과해야만 채택한다. 둘 다 `GUARD_JUSTIFIED` 판정일 때만 실제 룰에 반영한다.
 
 실제 사례: 섹터 RS 약세 가드를 추가하는 처방이 OOS(2025-01~2026-05) 단독으로는 유의(p_adj 0.002)했으나, IS(2023-06~2024-12) 데이터를 더하자 재현에 실패해 **기각**됐다. OOS에서만 유효하게 보이던 신호가 더 긴 기간의 IS 데이터 앞에서 데이터마이닝으로 판명된 케이스다. "효과 있어 보이는 신호도 IS 검증을 통과하지 못하면 버린다"는 규율을 시스템 수준에서 강제한다.
+
+또 다른 사례: 청산 룰 디테일 3후보(하드 스탑 폭·오버스테이 기간 등)를 IS/OOS 듀얼 게이트로 백테스트한 결과 전 후보가 INCONCLUSIVE로 판정돼 **전량 기각**하고 현행 청산 룰을 유지했다. "청산 룰을 바꾸면 나아질 것 같다"는 직관이 검증 앞에서 근거 없음으로 확인된 케이스로, 검증 실패 시 *변경하지 않는 것*이 기본값임을 보여준다.
 
 ---
 

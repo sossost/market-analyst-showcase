@@ -13,7 +13,7 @@
 
 1. **멀티모델 5인 에이전트 토론** — Claude Opus 4.8 / xAI Grok 4.3 / Google Gemini 3.1 Pro Preview / OpenAI Codex CLI(gpt-5.5)를 한 토론장에 묶어 페르소나별로 운영한다. **4개 lineage(Anthropic·xAI·Google·OpenAI)로 분산** — 단일 모델 합의가 아니라 서로 다른 모델의 강점을 페르소나로 배치한 구조. (상세: [docs/agent-system.md](docs/agent-system.md))
 
-2. **자율 운영** — 맥미니 한 대에서 launchd로 일 17회 cron이 돈다. 사람이 손대지 않아도 ETL → 토론 → 리포트 → QA → 학습이 매일 돌아간다. GitHub Issue가 triage되면 별도 cron이 Claude Code CLI로 코드를 작성하고 PR을 만들며, 또 다른 cron이 그 PR을 리뷰한다. (상세: [docs/autonomous-operations.md](docs/autonomous-operations.md))
+2. **자율 운영** — 맥미니 한 대에서 launchd로 20종이 넘는 cron 잡이 돈다. 사람이 손대지 않아도 ETL → 토론 → 리포트 → QA → 학습이 매일 돌아간다. GitHub Issue가 triage되면 별도 cron이 Claude Code CLI로 코드를 작성하고 PR을 만들며, 또 다른 cron이 그 PR을 리뷰한다. (상세: [docs/autonomous-operations.md](docs/autonomous-operations.md))
 
 3. **재귀 학습 루프** — 에이전트가 만든 thesis(검증 가능한 예측)는 시간이 지난 뒤 가격·실적 데이터로 자동 검증된다. CONFIRMED/INVALIDATED 결과는 패턴으로 승격되어 다음 토론에 few-shot으로 주입된다. 시스템은 자신의 과거 적중률을 기억한다.
 
@@ -73,7 +73,7 @@ flowchart TB
 |--------|------|------|
 | **Analyst** | 시그널 발굴, 5인 토론, thesis, 펀더멘탈 스코어링, narrative chains | Phase 2 주도주 선점 가설 |
 | **Portfolio (PM)** | tier 격상/강등, Phase Exit, 편입/청산, 포지션 사이징, 동시 보유 한도 | 현재 L1 룰 기반, L2 LLM 결정 단계 진화 예정 |
-| **Operations** | ETL, 리포트 발행, QA 게이트, Issue Processor, PR Reviewer | launchd cron 17회/일 |
+| **Operations** | ETL, 리포트 발행, QA 게이트, Issue Processor, PR Reviewer | launchd cron 20+종 |
 | **Backoffice** | 운영자 대시보드, 알파 KPI 시각화, 매매일지 UI | Next.js, 자동 빌드·배포 |
 | **B2C** | 시장 흐름 가공 데이터 외부 노출 (레이어 A) | 개별 종목 거명 금지 (레이어 B는 가동 전) |
 
@@ -87,9 +87,10 @@ flowchart TB
 |------|------|------|
 | ETL Daily | 07:00 화~토 | 데이터 수집 → 파생 지표 → 토론 → 일간 리포트 → QA |
 | ETL Weekly | 08:00 일 | 분기 재무·비율 갱신 |
-| Agent Weekly | 10:00 토 | 주간 리포트 + 주간 검증 |
+| Agent Weekly | 10:00 토 | 주간 리포트(시장·종목 2건) + 포트폴리오 심사 |
+| Chain Researcher | 05:00 금 | 내러티브 병목 딥리서치 (run → apply → evaluate) |
 | Strategic Review | 04:00 매일 | 전략 브리핑 자동 갱신 |
-| News Collect | 06:00, 18:00 | 매크로/종목 뉴스 |
+| News Collect | 06:45, 18:00 | 매크로/종목 뉴스 |
 | Issue Processor | 매 정시 (10:00~02:00, 17회/일) | triaged 이슈 → Claude Code CLI 구현 → PR 생성 |
 | PR Reviewer | 매 :30분 (09:30~02:30) | 열린 PR 전수 Strategic + Code 리뷰 |
 | Backoffice Health | 5분 | 헬스체크, 다운 시 Discord 알림 |
@@ -102,7 +103,7 @@ flowchart TB
 ## 기술 스택
 
 - **런타임**: Node.js 20 (ESM), TypeScript strict
-- **DB**: PostgreSQL (Supabase) — 84개 테이블, Drizzle ORM
+- **DB**: PostgreSQL (Supabase) — 90개 테이블, Drizzle ORM
 - **AI**: Claude API (Opus / Sonnet / Haiku), OpenAI Codex CLI, Google Gemini API, Claude Code CLI
 - **프론트엔드**: Next.js (App Router), 모노레포 내 단일 backoffice 패키지
 - **테스트**: Vitest (80% 커버리지 라인)
@@ -115,9 +116,9 @@ flowchart TB
 
 ## 운영 규모
 
-- DB 테이블 84개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴 / 백테스트)
+- DB 테이블 90개 (시장 원본 / 파생 지표 / 분석·추천 / 토론·학습 / 리포트·QA / 기업 데이터 / 패턴 / 백테스트)
 - 종목 트래킹 윈도우 90일
-- 일 17회 cron, 7종 리포트 자동 발행 (일간/주간/기업/QA 등)
+- 20+종 cron 잡, 7종 리포트 자동 발행 (일간/주간 시장·주간 종목/기업/QA 등)
 - specialized agent 20종 (PO, 토론 페르소나, 딥리서치, 실행팀 등)
 
 ---
