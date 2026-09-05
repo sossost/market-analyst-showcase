@@ -8,15 +8,15 @@
 
 ### Node.js 20 (ESM) + TypeScript strict
 
-- 백엔드 cron 잡 / Next.js 대시보드 / B2C 서비스 모두 동일 런타임 → 컨텍스트 스위칭 최소
+- 백엔드 cron 잡 / 대시보드 / B2C 서비스 모두 동일 런타임 → 컨텍스트 스위칭 최소
 - ESM 통일로 dual-package hazard 회피
 - TypeScript strict + `noUncheckedIndexedAccess` — 런타임에 발견될 버그를 컴파일 타임에 잡는다
 - Branded type / Discriminated union으로 도메인 primitive 구분
 
 ### 트레이드오프
 
-- Python을 안 쓴 이유: 머신러닝 학습 파이프라인이 없다. 추론은 모두 외부 LLM API로 위임하므로 Python 생태계 의존이 불필요.
-- Bun/Deno를 안 쓴 이유: Drizzle ORM / Next.js 안정성이 Node에서 가장 검증되어 있다.
+- **Python을 안 쓴 이유**: 머신러닝 학습 파이프라인이 없다. 추론은 외부 LLM API로 위임하고, 백테스트는 SQL + TypeScript로 충분하다.
+- **Bun/Deno를 안 쓴 이유**: Drizzle ORM / Next.js 안정성이 Node에서 가장 검증되어 있다.
 
 ---
 
@@ -24,47 +24,69 @@
 
 ### PostgreSQL (Supabase 호스팅) + Drizzle ORM
 
-- 90개 테이블, 시계열 + 관계형 데이터 혼합
-- Supabase의 PostgREST는 backoffice/B2C 프론트엔드용. 무거운 ETL은 Drizzle로 직접 SQL.
-- 마이그레이션은 `drizzle-kit push` 기반 단방향 흐름 (롤백 케이스가 거의 없는 분석 시스템)
+- **146개 테이블**, 시계열 + 관계형 데이터 혼합
+- 무거운 ETL과 백테스트는 Drizzle/raw SQL로 직접 처리. PostgREST는 프론트엔드용
+- **번호순 SQL 마이그레이션**으로 전환했다 — `push` 기반 단방향 흐름은 여러 세션이 병렬로 스키마를 건드리기 시작하면서 무너졌다. 지금은 파일 번호 + 체크섬 등재 + 충돌 검사 CI 가드로 관리한다
+
+### 백테스트 DB는 별도다
+
+백테스트 전용 PostgreSQL을 다른 머신에 둔다. 이유는 성능 격리이고([Backtest & Research](backtest-research.md)), 그 결과로 **같은 테이블이 여러 사본으로 존재**하게 됐다. 그래서 입력 테이블마다 정본 생산자를 하나로 고정하고, 복제 시점의 (행 수, 내용 해시)를 원장에 남긴다. 사본 간 정본 관계를 정의하지 않으면 α 차이가 전략 차이인지 데이터 차이인지 분리할 수 없다.
 
 ### 왜 Prisma가 아닌가
 
 - 쿼리 최적화 시 raw SQL 자유도가 더 높다
-- 스키마 단일 source of truth (`src/db/schema/`)가 TS 파일이라 IDE 친화
-- 마이그레이션 파일 관리 부담이 적다
+- 스키마 SSOT가 TS 파일이라 IDE 친화
+- 시계열 윈도우 함수·CTE를 많이 쓴다
 
 ### 왜 Mongo가 아닌가
 
-- 시계열 join / 윈도우 함수가 빈번하다 (RS 계산, Phase 추적, brigade 분석)
-- PostgreSQL의 JSONB로 유연성도 충분히 확보 (theses, narrative_chains 등에 사용)
+- 시계열 join / 윈도우 함수가 빈번하다 (RS 계산, Phase 추적, 백테스트 NAV 회계)
+- 회계 불변식을 DB CHECK로 승격할 수 있다 — 실계좌 스냅샷의 `총자산 = 현금 + 포지션가치` 항등식이 그 예다
+- JSONB로 유연성도 충분히 확보
 
 ---
 
 ## AI 모델 / SDK
 
-### 다중 SDK 동시 사용
+### 지금
 
 | SDK / CLI | 용도 |
 |-----------|------|
-| `@anthropic-ai/sdk` | Claude Opus/Sonnet/Haiku 직접 호출 (Macro·Industry·Moderator, QA, 분석) |
-| Claude Code CLI | Issue Processor / PR Reviewer (코드 작성/리뷰 컨텍스트) |
-| OpenAI Codex CLI | Sentiment 페르소나 (gpt-5.5 계열) |
-| OpenAI SDK (xAI baseURL) | Tech 페르소나 (Grok 4.3 — xAI는 OpenAI 호환 API) |
-| `@google/generative-ai` | Geopolitics 페르소나 (Gemini 3.1 Pro Preview) |
+| `@anthropic-ai/sdk` | 토론 페르소나 6종, 리포트 해석, QA 정성 채점, 분류 |
+| Claude Code CLI | Issue Processor / PR Reviewer / chain-researcher(WebSearch·WebFetch) |
+
+**전부 Claude다.** 모델 티어는 **코드 한 곳에서 선언**하고, 마크다운 프롬프트 파일의 선언과 어긋나면 드리프트 가드 테스트가 깨진다.
+
+### 전에는 이랬다
+
+| SDK | 페르소나 |
+|-----|---------|
+| OpenAI SDK (xAI baseURL) | Tech (Grok) |
+| `@google/generative-ai` | Geopolitics (Gemini) |
+| OpenAI Codex CLI | Sentiment (gpt-5 계열) |
+
+4개 lineage를 페르소나에 매핑해 "단일 모델 합의"를 피하려 했다. 2026-08-15에 전부 걷어냈다 — **토론 산출물이 실계좌 집행에 기여하는 비율이 0**이라, 외부 유료 API 지출을 알파에 연결할 근거가 없었기 때문이다. 자세한 경위와 그 과정에서 난 사고는 [Agent System](agent-system.md)에 있다.
+
+외부 프로바이더 코드는 **휴면 상태로 보존**한다(삭제 판단은 별도). 대신 비Claude 분기에 진입하면 경고 로그를 남겨, "외부 API 호출 0건"을 로그 grep으로 확인할 수 있게 했다 — 이전에는 폴백이 *실패할 때만* 로그를 남겨서, 외부 모델로 되돌아가도 정상 응답하면 무증상이었다.
 
 ### 모델 선택 원칙
 
-| 작업 | 모델 | 이유 |
+| 작업 | 티어 | 이유 |
 |------|------|------|
-| Macro / Industry / Moderator | Claude Opus 4.8 | 깊은 추론, 긴 컨텍스트 |
-| Tech | xAI Grok 4.3 | agentic tool calling 강점, 환각 적음, 1M context |
-| Geopolitics | Google Gemini 3.1 Pro Preview | reasoning + 검색 통합, 다국어 |
-| Sentiment | OpenAI gpt-5.5 (Codex CLI) | 언어 직감 + 다양성 확보 |
-| 짧은 분류/정리 | Claude Haiku | 비용·속도 |
-| 코드 작성/리뷰 | Claude Sonnet (Code CLI) | 코드 품질 |
+| 토론 페르소나 6종 | Opus | 깊은 추론, 긴 컨텍스트 |
+| 코드 작성/리뷰 | Claude Code CLI | 리포지토리 컨텍스트 |
+| 짧은 분류/번역 | Haiku | 비용·속도 |
 
-비용 최적화가 목표가 아니다. **모델 다양성(4 lineage)**으로 토론 품질을 확보하는 것이 목표.
+---
+
+## 브로커 API
+
+| 브로커 | 상태 | 비고 |
+|--------|------|------|
+| 한국투자증권 OpenAPI | 실계좌 자동 집행 | 계좌별 토큰·킬스위치·집행 캡 독립. 토큰 발급은 advisory lock으로 단일화 |
+| 토스증권 OpenAPI | 인프라 보존, 무기한 홀딩 | refresh token 없음 + 재발급 시 이전 토큰 즉시 무효 → KIS보다 엄격한 단일 발급 강제가 필요했다 |
+
+**공통 브로커 추상화(BrokerAdapter)를 의도적으로 만들지 않았다.** 이중화의 목적은 독립 장애인데, 공통 레이어에 버그가 생기면 양쪽이 동시에 무너진다. 그래서 브로커마다 파일·테이블·advisory lock을 독립으로 둔다.
 
 ---
 
@@ -72,20 +94,19 @@
 
 ### Next.js (App Router) + React 19 + Suspense
 
-- backoffice / b2c 모두 Next.js
+- backoffice / b2c / cap3-dashboard 모두 Next.js
 - Server Component 우선, 인터랙션 부분만 Client Component
-- 데이터 페치는 모두 Suspense 경계 + ErrorBoundary로 감싸 로딩/에러 상태를 컴포넌트마다 수동 관리하지 않음
+- 데이터 페치는 Suspense 경계 + ErrorBoundary
 
 ### 스타일링
 
-- CSS variables + 모듈형 스타일
-- 한국 금융 컨벤션: **상승 = 빨강 / 하락 = 파랑** (적녹색약 호환 + 한국 표준)
-- 글로벌 오버라이드 없음. 컴포넌트별 격리.
+- CSS variables + 모듈형 스타일, 글로벌 오버라이드 없음
+- 한국 금융 컨벤션: **상승 = 빨강 / 하락 = 파랑**
+- 신규 화면·탭·시각화는 **디자인 시안을 먼저 확정**하고 구현한다(감으로 만든 화면을 나중에 뜯는 비용이 더 크다)
 
 ### 차트
 
-- Recharts (정형 차트)
-- D3 (Gantt, 5트랙 국면 시각화 같은 커스텀)
+Recharts(정형) + D3(Gantt, 5트랙 국면 같은 커스텀).
 
 ---
 
@@ -93,40 +114,48 @@
 
 ### Vitest
 
-- 단위 테스트 80% 이상 라인 커버리지
-- 통합 테스트는 실제 DB 인스턴스(테스트 schema)에서 실행
-- TDD 워크플로 — RED → GREEN → REFACTOR
+- 테스트 파일 **800개+**, 케이스 **13,000건+**
+- **푸시 훅이 전체 스위트 통과를 강제한다** — 그래서 테스트를 느리게 만드는 변경은 곧바로 모두의 문제가 된다(백테스트를 다른 머신으로 옮긴 직접적 계기)
+- 통합 테스트는 실제 DB 인스턴스에서 실행. 마이그레이션 자체도 인메모리 PG에서 실행해 검증한다
 
 ### 무엇을 테스트하지 않는가
 
-- LLM 출력 자체는 단위 테스트하지 않음 (비결정적)
+- LLM 출력 자체는 테스트하지 않음 (비결정적)
 - LLM **주변의 컨텍스트 빌드 / 결과 파싱 / 후처리**만 테스트
-- E2E는 critical user flow (매매일지, 리포트 발행)만 Playwright로 커버
+- E2E는 critical flow만 Playwright
+
+### 계약 테스트를 많이 쓴다
+
+이 시스템에서 가장 위험한 버그는 "틀린 코드"가 아니라 **"조용히 사라진 안전장치"**다. 그래서 불변식을 테스트로 고정한다.
+
+- 실행 파일이 관찰용 테이블을 참조하면 실패
+- 모델 티어 선언 두 곳이 어긋나면 실패
+- 백테스트 엔진이 모르는 설정 컬럼이 생기면 실패
+- 페이퍼 트랙 코드가 브로커 모듈을 import하면 실패
+
+그리고 **계약 테스트가 실제로 발화하는지 변이(mutation)로 확인**한다. "테스트가 통과한다"와 "테스트가 그 결함을 잡는다"는 다른 말이다 — 앞선 분기가 먼저 예외를 던져서 변이가 도달조차 못 한 사례가 있었다.
 
 ---
 
 ## 운영 인프라
 
-### macOS launchd
+### macOS launchd — 머신 3대
 
-- 20+종 cron 잡 안정 가동, 1년 이상 누적 가동 무중단
-- plist 파일은 `scripts/launchd/` 디렉터리에 git 관리
-- 배포는 `launchctl unload && launchctl load`
+- 프로덕션 42종 cron 안정 가동
+- plist는 git 관리, 설치 스크립트가 등록/해제를 멱등 처리
+- **DST 자동 조정이 없다** — 미국 장 시간에 맞춘 잡은 서머타임 전환 시 수동으로 옮겨야 하고, 관련 plist를 **동시에** 옮겨야 순서가 깨지지 않는다
 
 ### GitHub Actions
 
-- 사용처는 PR CI (lint + build + test)만
-- 배포는 맥미니 자체 cron으로 처리
+PR CI(lint + typecheck + test)만. 배포는 각 머신의 cron이 `origin/main` 변경을 감지해 처리한다.
 
 ### Discord
 
-- 운영 알림 단일 채널 정책. 채널 5개로 도배되는 것 회피.
-- webhook 기반, 모든 cron이 시작/완료/실패 시 통보
+운영 채널 + **CRITICAL 전용 채널** 분리. 원래 단일 채널 정책이었지만, 실계좌 집행이 들어오면서 "당장 사람이 봐야 하는 것"과 "나중에 봐도 되는 것"을 섞을 수 없게 됐다.
 
 ### Tailscale
 
-- 맥미니 원격 SSH 접근
-- 외부 노출 없이 안전한 운영 채널 확보
+머신 간 SSH. 외부 노출 없음.
 
 ---
 
@@ -134,11 +163,12 @@
 
 | 소스 | 용도 | 라이선스 정책 |
 |------|------|--------------|
-| FMP Ultimate | 가격, 재무, 어닝콜, 추정치 | raw 외부 노출 금지, 가공물(RS/등급/콘텐츠)만 노출 |
-| FRED | 매크로 지표 (HY OAS, 신용 스프레드 등) | 공공 |
-| Brave Search | 매크로 뉴스 |  |
-| RSS (CNBC/MarketWatch) | 뉴스 보강 |  |
-| Yahoo Finance | 보조 (ad-hoc) |  |
+| FMP Ultimate | 가격, 재무, 어닝콜, 추정치, 실적 캘린더 | raw 외부 노출 금지, 가공물만 노출 |
+| FRED | 매크로 지표 (신용 스프레드, 금융 스트레스, 실질금리 등) | 공공 |
+| Brave Search | 매크로 뉴스 | |
+| RSS | 뉴스 보강 | |
+
+**데이터 품질에서 배운 것**: 기술적 지표만으로 종목을 판단하면 실체 없는 종목이 구조적으로 조건을 충족할 수 있다. SPAC 164개가 필터 없이 유입돼 53개가 가짜 Phase 2로 판정된 적이 있다 — NAV 근처에서만 움직이니 미세한 상승만으로 이동평균 위 + 52주 고점 근처를 기계적으로 만족한 것이다. 필터 한 줄로 해결했지만, **분류 필드 하나가 전체 시그널 품질을 좌우한다**는 교훈이 남았다.
 
 ---
 
@@ -146,20 +176,14 @@
 
 ### "왜 모노레포인가"
 
-- 5개 도메인이 같은 schema(drizzle)에 의존
-- 같은 타입을 5개 패키지에서 import해야 함
-- yarn workspaces로 충분히 가벼움 (Turborepo/Nx 도입 안 함 — 도구 학습 비용 회피)
+7개 패키지가 같은 스키마와 타입에 의존한다. yarn workspaces로 충분히 가볍다(Turborepo/Nx 도입 안 함 — 도구 학습 비용 회피).
 
 ### "왜 마이크로서비스가 아닌가"
 
-- 1인 운영 시스템에는 네트워크 hop만큼의 비용 가치가 없다
-- DB가 도메인 간 인터페이스 역할을 충분히 한다
-- 트래픽 압박이 없으므로 수직 확장으로 충분
+1인 운영 시스템에는 네트워크 hop만큼의 비용 가치가 없다. DB가 도메인 간 인터페이스 역할을 충분히 한다.
 
-### "왜 자체 호스팅(맥미니)인가"
+### "왜 자체 호스팅인가"
 
-- 클라우드 비용보다 디버깅 단순성이 더 중요한 단계
-- 모든 컴포넌트가 같은 머신에 있으면 로그 추적이 단순하다
-- 머신 1대로 충분히 처리되는 워크로드
+클라우드 비용보다 디버깅 단순성이 중요한 단계다. 다만 **"머신 1대로 충분하다"는 판단은 실측으로 깨졌고**, 부하 성격이 다른 워크로드(백테스트)는 이미 분리했다.
 
 이 모든 선택은 **재검토 대상**이다. 트래픽이 늘거나 팀이 커지면 바뀐다.
